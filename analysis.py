@@ -1,3 +1,6 @@
+# To be done:
+# Write the function below to handle arbitrary batch sizes and number of lines to be processed
+
 import pandas as pd
 import numpy as np
 from sklearn import tree
@@ -59,36 +62,35 @@ clf = clf.fit(df_train, rating)
 # Apply the classifier to the test data
 test_results = [] # Predicted values
 test_values = [] # Actual values
-num_examples_to_test, batch_size = 50, 50
+num_examples_to_test, batch_size = 0, 80
+if num_examples_to_test == 0:
+    num_examples_to_test = sum(1 for line in open('processed_acl/kitchen/unlabeled.review'))
 
 # Only do some of the lines for now
-num_lines = 0
 start_time = time.time()
 with open("processed_acl/kitchen/unlabeled.review") as file:
-    df_batch = pd.DataFrame(0, np.arange(batch_size), np.arange(len(master_list)))
+    num_lines = 0
+    df_batch = None
     for line in file:
+        if (num_lines % batch_size) == 0 and num_lines < num_examples_to_test:
+            df_batch = pd.DataFrame(0, np.arange(min(batch_size, num_examples_to_test-num_lines)), np.arange(len(master_list)))
         if (num_lines < num_examples_to_test):
-            row_in_df = df_batch.iloc[num_lines]
-            if (num_lines % 10 == 0): # Tracker
-                print(num_lines)
-            # word_vector = np.zeros(len(master_list)) # Essentially a batch size of 1
+            row_in_df = df_batch.iloc[num_lines%batch_size]
             words = line.rstrip().split(' ')
             for i in range(len(words)-1):
                 word = words[i].split(":")[0]
                 if word in master_dict:
-                    #word_vector[master_dict[word]] = words[i].split(":")[1]
                     row_in_df[master_dict[word]] = words[i].split(":")[1]
             test_values.append(words[-1].split("#")[2][1:])
-            #predicted_value = clf.predict(pd.DataFrame(word_vector).T)[0]
-            #test_results.append(predicted_value)
         num_lines += 1
-    predicted_values = clf.predict(df_batch)
-    for i in range(batch_size):
-        test_results.append(predicted_values[i])
+        if ((num_lines % batch_size) == 0 or num_lines == num_examples_to_test) and num_lines <= num_examples_to_test:
+            predicted_values = clf.predict(df_batch)
+            for i in range(len(df_batch.index)):
+                test_results.append(predicted_values[i])
 end_time = time.time()
 print("Time: "+str(end_time-start_time))
             
-# Calculate for
+# Calculate accuracy
 den = len(test_values)
 num = len([0 for i in range(den) if test_values[i]==test_results[i]])
 print([num, den])
