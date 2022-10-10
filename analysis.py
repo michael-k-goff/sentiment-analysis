@@ -32,7 +32,7 @@ def build_master_dict():
     return master_dict, master_list, number_examples
 
 # The training dataframe
-def build_train_df():
+def build_train_df(master_dict, master_list, number_examples):
     num_training_examples = number_examples["negative"]+number_examples["positive"]
     df_train = pd.DataFrame(0, index=np.arange(num_training_examples), columns = np.arange(len(master_list)))
     rating = []
@@ -54,21 +54,20 @@ def build_train_df():
     add_words("processed_acl/kitchen/positive.review",number_examples["negative"])
     return df_train, rating
 
-def get_model():
+def train_model(df_train, rating):
     clf = tree.DecisionTreeClassifier()
     clf = clf.fit(df_train, rating)
     return clf
 
-def apply_model():
+def apply_model(master_list, master_dict, clf):
     # Apply the classifier to the test data
     test_results = [] # Predicted values
     test_values = [] # Actual values
-    num_examples_to_test, batch_size = 1, 80 # First value should be 0 for the full test set
+    num_examples_to_test, batch_size = 0, 1000 # First value should be 0 for the full test set
     if num_examples_to_test == 0:
         num_examples_to_test = sum(1 for line in open('processed_acl/kitchen/unlabeled.review'))
 
     # Only do some of the lines for now
-    #start_time = time.time()
     with open("processed_acl/kitchen/unlabeled.review") as file:
         num_lines = 0
         df_batch = None
@@ -88,8 +87,6 @@ def apply_model():
                 predicted_values = clf.predict(df_batch)
                 for i in range(len(df_batch.index)):
                     test_results.append(predicted_values[i])
-    #end_time = time.time()
-    #print("Time: "+str(end_time-start_time))
     return test_values, test_results
 
 def get_score(test_values, test_results):
@@ -99,8 +96,24 @@ def get_score(test_values, test_results):
     print([num, den])
     print(num/den)
     
+start_time = time.time()
 master_dict, master_list, number_examples = build_master_dict()
-df_train, rating = build_train_df()
-clf = get_model()
-test_values, test_results = apply_model()
-get_score(test_values, test_results)            
+end_time = time.time()
+print("build_master_dict: "+str(end_time-start_time))
+
+start_time = time.time()
+df_train, rating = build_train_df(master_dict, master_list, number_examples)
+end_time = time.time()
+print("build_train_df: "+str(end_time-start_time))
+
+start_time = time.time()
+clf = train_model(df_train, rating)
+end_time = time.time()
+print("train_model: "+str(end_time-start_time))
+
+start_time = time.time()
+test_values, test_results = apply_model(master_list, master_dict, clf)
+end_time = time.time()
+print("apply_model: "+str(end_time-start_time))
+
+get_score(test_values, test_results)
