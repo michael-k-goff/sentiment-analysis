@@ -1,8 +1,9 @@
 # Imports
 import pandas as pd
 import numpy as np
-from sklearn import tree
 import time
+import decision_tree
+import regression
 
 # A dictionary containing the word vectors for all training examples
 def build_master_dict():
@@ -30,34 +31,6 @@ def build_master_dict():
         master_dict[master_list[i]] = i
     
     return master_dict, master_list, number_examples
-
-# The training dataframe
-def build_train_df(master_dict, master_list, number_examples):
-    num_training_examples = number_examples["negative"]+number_examples["positive"]
-    df_train = pd.DataFrame(0, index=np.arange(num_training_examples), columns = np.arange(len(master_list)))
-    rating = []
-
-    def add_words(filename, start_point):
-        with open(filename) as file:
-            row_count = start_point
-            for line in file:
-                row_in_df = df_train.iloc[row_count]
-                words = line.rstrip().split(' ')
-                for i in range(len(words)-1):
-                    word = words[i].split(":")[0]
-                    count = int(words[i].split(":")[1])
-                    row_in_df[master_dict[word]] = count
-                rating.append(words[-1].split("#")[2][1:])
-                row_count += 1
-            
-    add_words("processed_acl/kitchen/negative.review",0)
-    add_words("processed_acl/kitchen/positive.review",number_examples["negative"])
-    return df_train, rating
-
-def train_model(df_train, rating):
-    clf = tree.DecisionTreeClassifier()
-    clf = clf.fit(df_train, rating)
-    return clf
 
 def apply_model(master_list, master_dict, clf):
     # Apply the classifier to the test data
@@ -96,24 +69,8 @@ def get_score(test_values, test_results):
     print([num, den])
     print(num/den)
     
-start_time = time.time()
 master_dict, master_list, number_examples = build_master_dict()
-end_time = time.time()
-print("build_master_dict: "+str(end_time-start_time))
-
-start_time = time.time()
-df_train, rating = build_train_df(master_dict, master_list, number_examples)
-end_time = time.time()
-print("build_train_df: "+str(end_time-start_time))
-
-start_time = time.time()
-clf = train_model(df_train, rating)
-end_time = time.time()
-print("train_model: "+str(end_time-start_time))
-
-start_time = time.time()
+df_train, rating = regression.build_train_df(master_dict, master_list, number_examples)
+clf = regression.train_model(df_train, rating)
 test_values, test_results = apply_model(master_list, master_dict, clf)
-end_time = time.time()
-print("apply_model: "+str(end_time-start_time))
-
 get_score(test_values, test_results)
