@@ -1,4 +1,4 @@
-# As of October 11, 2022, this is not predicting properly. Fix that later.
+# Implementation of basic linear regression model.
 
 from sklearn.linear_model import LinearRegression
 import pandas as pd
@@ -37,3 +37,42 @@ def build_train_df(master_dict, master_list, number_examples):
             rating[i] = 1
     
     return df_train, rating
+    
+def apply_model(master_list, master_dict, clf):
+    # Apply the classifier to the test data
+    test_results = [] # Predicted values
+    test_values = [] # Actual values
+    num_examples_to_test, batch_size = 0, 1000 # First value should be 0 for the full test set
+    if num_examples_to_test == 0:
+        num_examples_to_test = sum(1 for line in open('processed_acl/kitchen/unlabeled.review'))
+
+    # Only do some of the lines for now
+    with open("processed_acl/kitchen/unlabeled.review") as file:
+        num_lines = 0
+        df_batch = None
+        for line in file:
+            if (num_lines % batch_size) == 0 and num_lines < num_examples_to_test:
+                df_batch = pd.DataFrame(0, np.arange(min(batch_size, num_examples_to_test-num_lines)), np.arange(len(master_list)))
+            if (num_lines < num_examples_to_test):
+                row_in_df = df_batch.iloc[num_lines%batch_size]
+                words = line.rstrip().split(' ')
+                for i in range(len(words)-1):
+                    word = words[i].split(":")[0]
+                    if word in master_dict:
+                        row_in_df[master_dict[word]] = words[i].split(":")[1]
+                test_value = 0
+                if words[-1].split("#")[2][1:] == "positive":
+                    test_value = 1
+                test_values.append(test_value)
+            num_lines += 1
+            if ((num_lines % batch_size) == 0 or num_lines == num_examples_to_test) and num_lines <= num_examples_to_test:
+                predicted_values = clf.predict(df_batch)
+                for i in range(len(df_batch.index)):
+                    # 0 for a negative rating, 1 for a positive rating
+                    predicted_value = predicted_values[i]
+                    if predicted_value < 0.5:
+                        predicted_value = 0
+                    else:
+                        predicted_value = 1
+                    test_results.append(predicted_value)
+    return test_values, test_results
